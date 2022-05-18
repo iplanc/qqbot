@@ -145,4 +145,4 @@ async def _message_handler(event, message: qqbot.Message):
         ...
 ```
 # 三分半掌握基础qq机器人开发
-[视频链接](http://119.29.96.141:81/rickroll.mp4")
+[视频链接](http://119.29.96.141:81/rickroll.mp4)
