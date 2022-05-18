@@ -41,6 +41,186 @@ def keywordsBlock(str):
         str = re.sub(eachWord, keywords.get(eachWord), str)
     return str.strip("\n")
 
+class GTAVBot:
+    msgapi = None
+    message_reference = None
+
+
+    def __init__(self, t_token, message) -> None:
+        self.msg_api = qqbot.AsyncMessageAPI(t_token, False)
+        self.message_reference = qqbot.MessageReference()
+        self.message_reference.message_id = message.id
+    
+
+    async def queryInfo(self, t_token, content, message):
+        username = content.split(" ")[2]
+        self.message_reference = qqbot.MessageReference()
+        self.message_reference.message_id = message.id
+        response = requests.get(
+            "https://hqshi.cn/api/recent",
+            params = {"nickname": username, "expire": 7200, "type": "text"},
+        )
+        qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
+        if response.json()["code"]  ==  400:
+            message_to_send = qqbot.MessageSendRequest(
+                content = response.json()["message"],
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        elif response.json()["code"]  ==  202:
+            message_to_send = qqbot.MessageSendRequest(
+                content = response.json()["message"], 
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        elif response.json()["code"]  ==  303:
+            response = requests.get(
+                "https://hqshi.cn/api/post", params = {"nickname": username}
+            )
+            qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
+            message_to_send = qqbot.MessageSendRequest(
+                content = response.json()["message"], 
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+            while True:
+                time.sleep(1)
+                response1 = requests.get(
+                    "https://hqshi.cn/api/recent",
+                    params = {"nickname": username, "expire": 7200, "type": "text"},
+                )
+                if response1.json()["code"]  ==  200: break
+            message_to_send = qqbot.MessageSendRequest(
+                content = keywordsBlock(
+                    response1.json()["body"]
+                ),
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        else:
+            message_to_send = qqbot.MessageSendRequest(
+                content = keywordsBlock(response.json()["body"]),
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+    
+
+    async def queryEvent(self, t_token, content, message):
+        # 获取频道信息
+        subChannelList = qqbot.ChannelAPI(t_token, False).get_channels(message.guild_id)
+        for eachSubChannel in subChannelList:
+            if "每周活动" in eachSubChannel.name:
+                message_to_send = qqbot.MessageSendRequest(
+                    content = "<#" + eachSubChannel.id + ">",
+                    msg_id = message.id,
+                    message_reference = self.message_reference
+                )
+                await self.msg_api.post_message(message.channel_id, message_to_send)
+    
+
+    async def queryData(self, t_token, content, message):
+        username = content.split(" ")[2]
+        response = requests.get(
+            "https://hqshi.cn/api/status", params = {"nickname": username, "limit": 1}
+        )
+        qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
+        if response.json()["code"]  ==  400:
+            message_to_send = qqbot.MessageSendRequest(
+                content = response.json()["message"],
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        else:
+            if response.json().__contains__("body"):
+                message_to_send = qqbot.MessageSendRequest(
+                    content = keywordsBlock(
+                        json.dumps(
+                            response.json()["body"],
+                            ensure_ascii = False,
+                            indent = 4,
+                            separators = (", ", ": "),
+                        )
+                    ),
+                    msg_id = message.id,
+                    message_reference = self.message_reference
+                )
+            else:
+                message_to_send = qqbot.MessageSendRequest(
+                    content = "未查询到有效数据，请检查用户名后重新查询。",
+                    msg_id = message.id,
+                    message_reference = self.essage_reference
+                )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+    
+    class Operate:
+        msg_api = None
+        mute_api = None
+        guild_api = None
+        user_api = None
+        message_reference = None
+
+        def __init__(self, t_token, message) -> None:
+            self.msg_api = qqbot.AsyncMessageAPI(t_token, False)
+            self.mute_api = qqbot.MuteAPI(t_token, False)
+            self.guild_api = qqbot.GuildRoleAPI(t_token, False)
+            self.message_reference = qqbot.MessageReference()
+            self.user_api = qqbot.UserAPI(t_token, False)
+            self.message_reference.message_id = message.id
+        
+
+        async def muteUser(self, t_token, content, message):
+            userid = content.split(" ")[2][3:-1]
+            mutetime = content.split(" ")[3]
+            setrole = ("博林布鲁克监狱服役人员" if content.split(" ")[4:]  ==  [] else content.split(" ")[4])
+            self.mute_api.mute_member(
+                guild_id = message.guild_id,
+                user_id = userid,
+                options = {"mute_seconds": mutetime}
+            )
+            message_to_send = qqbot.MessageSendRequest(
+                content = "已禁言" + userid,
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+
+            for eachRole in (self.guild_api.get_guild_roles(message.guild_id).roles):
+                if eachRole.name ==  setrole:
+                    self.guild_api.create_guild_role_member(message.guild_id, eachRole.id, userid)
+            message_to_send = qqbot.MessageSendRequest(
+                content = "已添加身份组" + userid,
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        
+
+        async def serverStatus(self, t_token, content, message):
+            message_to_send = qqbot.MessageSendRequest(
+                content = 'CPU: ' + re.search(r'\d+\.\d+$', os.popen("iostat -c").read(), re.M)[0] + '% 空闲', 
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+        
+
+        async def guildInfo(self, t_token, content, message):
+            for each in self.user_api.me_guilds():
+                guild = self.guild_api.get_guild(each.id)
+                message_to_send = qqbot.MessageSendRequest(
+                    content = guild.id + '\n' + guild.name + '\n' + guild.owner_id + '\n' + str(guild.owner) + '\n' + str(guild.member_count) + '\n' + str(guild.max_members) + '\n' + guild.description,
+                    image = each.icon,
+                    msg_id = message.id,
+                    message_reference = self.message_reference
+                )
+                await self.msg_api.post_message(message.channel_id, message_to_send)
 
 async def _message_handler(event, message: qqbot.Message):
     """
@@ -48,287 +228,37 @@ async def _message_handler(event, message: qqbot.Message):
     :param event: 事件类型
     :param message: 事件对象（如监听消息是Message对象）
     """
-    msg_api = qqbot.AsyncMessageAPI(t_token, False)
+    gtavbot = GTAVBot(t_token, message)
+    operate = GTAVBot.Operate(t_token, message)
     # 打印返回信息
     qqbot.logger.info("event %s" % event + ",receive message %s" % message.content)
+    # 格式化输入
+    left, right = re.search(r'/[\u4e00-\u9fa5][\u4e00-\u9fa5]', message.content, re.M).span()
+    message.content = message.content[:right] + " " + message.content[right:]
+    message.content = message.content[:left]  + " " + message.content[left:]
     message.content = re.sub(r" +", r" ", message.content.strip())
     # 运行命令
-    content = message.content
-    if "/查询" in content:
-        username = content.split(" ")[2]
-        message_reference = qqbot.MessageReference()
-        message_reference.message_id = message.id
-        response = requests.get(
-            "https://hqshi.cn/api/recent",
-            params={"nickname": username, "expire": 7200, "type": "text"},
-        )
-        qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-        if response.json()["code"] == 400:
-            message_to_send = qqbot.MessageSendRequest(
-                content=response.json()["message"],
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
-        elif response.json()["code"] == 202:
-            message_to_send = qqbot.MessageSendRequest(
-                content=response.json()["message"], 
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
-        elif response.json()["code"] == 303:
-            response = requests.get(
-                "https://hqshi.cn/api/post", params={"nickname": username}
-            )
-            qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-            message_to_send = qqbot.MessageSendRequest(
-                content=response.json()["message"], 
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
-            while True:
-                time.sleep(1)
-                response1 = requests.get(
-                    "https://hqshi.cn/api/recent",
-                    params={"nickname": username, "expire": 7200, "type": "text"},
-                )
-                if response1.json()["code"] == 200: break
-            message_to_send = qqbot.MessageSendRequest(
-                content=keywordsBlock(
-                    response1.json()["body"]
-                ),
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-            await msg_api.post_message(message.channel_id, message_to_send)
-        else:
-            message_to_send = qqbot.MessageSendRequest(
-                content=keywordsBlock(response.json()["body"]),
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
+    if "/查询" in message.content:
+        await gtavbot.queryInfo(t_token, message.content, message)
 
-    elif "/活动" in content:
-        message_reference = qqbot.MessageReference()
-        message_reference.message_id = message.id
-        # 获取频道信息
-        subChannelList = qqbot.ChannelAPI(t_token, False).get_channels(message.guild_id)
-        for eachSubChannel in subChannelList:
-            if "每周活动" in eachSubChannel.name:
-                message_to_send = qqbot.MessageSendRequest(
-                    content="<#" + eachSubChannel.id + ">",
-                    msg_id=message.id,
-                    message_reference=message_reference
-                )
-                await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/活动" in message.content:
+        await gtavbot.queryEvent(t_token, message.content, message)
 
-    elif "/信息" in content:
-        username = content.split(" ")[2]
-        message_reference = qqbot.MessageReference()
-        message_reference.message_id = message.id
-        response = requests.get(
-            "https://hqshi.cn/api/status", params={"nickname": username, "limit": 1}
-        )
-        qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-        if response.json()["code"] == 400:
-            message_to_send = qqbot.MessageSendRequest(
-                content=response.json()["message"],
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
-        else:
-            if response.json().__contains__("body"):
-                message_to_send = qqbot.MessageSendRequest(
-                    content=keywordsBlock(
-                        json.dumps(
-                            response.json()["body"],
-                            ensure_ascii=False,
-                            indent=4,
-                            separators=(", ", ": "),
-                        )
-                    ),
-                    msg_id=message.id,
-                    message_reference=message_reference
-                )
-            else:
-                message_to_send = qqbot.MessageSendRequest(
-                    content="未查询到有效数据，请检查用户名后重新查询。",
-                    msg_id=message.id,
-                    message_reference=message_reference
-                )
-            await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/信息" in message.content:
+        await gtavbot.queryData(t_token, message.content, message)
 
-    elif "/禁言" in content:
-        userid = content.split(" ")[2][3:-1]
-        mutetime = content.split(" ")[3]
-        message_reference = qqbot.MessageReference()
-        message_reference.message_id = message.id
-        setrole = (
-            "博林布鲁克监狱服役人员" if content.split(" ")[4:] == [] else content.split(" ")[4]
-        )
-        qqbot.MuteAPI(t_token, False).mute_member(
-            message.guild_id, userid, {"mute_seconds": mutetime}
-        )
-        message_to_send = qqbot.MessageSendRequest(
-            content="已禁言" + userid,
-            msg_id=message.id,
-            message_reference=message_reference
-        )
-        await msg_api.post_message(message.channel_id, message_to_send)
-
-        for eachRole in (
-            qqbot.GuildRoleAPI(t_token, False).get_guild_roles(message.guild_id).roles
-        ):
-            if eachRole.name == setrole:
-                qqbot.GuildRoleAPI(t_token, False).create_guild_role_member(
-                    message.guild_id, eachRole.id, userid
-                )
-        message_to_send = qqbot.MessageSendRequest(
-            content="已添加身份组" + userid,
-            msg_id=message.id,
-            message_reference=message_reference
-        )
-        await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/禁言" in message.content:
+        await operate.muteUser(t_token, message.content, message)
     
-    elif "/状态" in content:
-        message_reference = qqbot.MessageReference()
-        message_reference.message_id = message.id
-        message_to_send = qqbot.MessageSendRequest(
-            content=os.popen("iostat -c").read(), 
-            msg_id=message.id,
-            message_reference=message_reference
-        )
-        await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/状态" in message.content:
+        await operate.serverStatus(t_token, message.content, message)
     
-    elif "/频道" in content:
-        # str = ""
-        for each in qqbot.UserAPI(t_token, False).me_guilds():
-            guild = qqbot.GuildAPI(t_token, False).get_guild(each.id)
-            # str = str + each.id + "\t" + each.name + "\t" + "\n"
-            message_reference = qqbot.MessageReference()
-            message_reference.message_id = message.id
-            message_to_send = qqbot.MessageSendRequest(
-                content=guild.id + '\n' + guild.name + '\n' + guild.owner_id + '\n' + str(guild.owner) + '\n' + str(guild.member_count) + '\n' + str(guild.max_members) + '\n' + guild.description,
-                image=each.icon,
-                msg_id=message.id,
-                message_reference=message_reference
-            )
-            await msg_api.post_message(message.channel_id, message_to_send)
-
-
-# async def _create_ark_obj_list_recent(dict):
-#     """
-#     定义ark内容的处理
-#     :param dict: 获取到的json对象
-#     """
-#     obj_list = [MessageArkObj(obj_kv=[MessageArkObjKv(key="desc", value="code：" + str(dict['code']) + "  payload：" + str(dict['payload']) + "  message：" + dict['message'])])]
-
-#     for key in dict:
-#         obj_list.append(MessageArkObj(obj_kv=[MessageArkObjKv(key="desc", value=re.sub("下注", "虾煮", dict[key]))]))
-
-#     return obj_list
-
-
-# async def _create_ark_obj_list_status(dict) -> List[MessageArkObj]:
-#     """
-#     定义ark内容的处理
-#     :param dict: 获取到的json对象
-#     """
-#     obj_list = [MessageArkObj(obj_kv=[MessageArkObjKv(key="desc", value="code：" + str(dict['code']) + "  payload：" + str(dict['payload']) + "  message：" + dict['message'])])]
-
-#     for key in dict['body']:
-#         obj_list.append(MessageArkObj(obj_kv=[MessageArkObjKv(key="desc", value=key + ": " + str(dict['body'][key]))]))
-
-#     return obj_list
-
-
-# async def send_player_recent_ark_message(dict, channel_id, message_id):
-#     """
-#     被动回复-子频道推送模版消息
-#     :param channel_id: 回复消息的子频道ID
-#     :param message_id: 回复消息ID
-#     :param dict: 玩家信息
-#     """
-#     # 构造消息发送请求数据对象
-#     ark = MessageArk()
-#     # 模版ID=23
-#     ark.template_id = 23
-#     ark.kv = [MessageArkKv(key="#DESC#", value="描述"),
-#               MessageArkKv(key="#PROMPT#", value="提示消息"),
-#               MessageArkKv(key="#LIST#", obj=await _create_ark_obj_list_recent(dict))]
-#     # 通过api发送回复消息
-#     send = qqbot.MessageSendRequest(content="", ark=ark, msg_id=message_id)
-#     msg_api = qqbot.AsyncMessageAPI(t_token, False)
-#     await msg_api.post_message(channel_id, send)
-
-
-# async def send_player_status_ark_message(dict, channel_id, message_id):
-#     """
-#     被动回复-子频道推送模版消息
-#     :param channel_id: 回复消息的子频道ID
-#     :param message_id: 回复消息ID
-#     :param dict: 玩家信息
-#     """
-#     # 构造消息发送请求数据对象
-#     ark = MessageArk()
-#     # 模版ID=23
-#     ark.template_id = 23
-#     ark.kv = [MessageArkKv(key="#DESC#", value="描述"),
-#               MessageArkKv(key="#PROMPT#", value="提示消息"),
-#               MessageArkKv(key="#LIST#", obj=await _create_ark_obj_list_status(dict))]
-#     # 通过api发送回复消息
-#     send = qqbot.MessageSendRequest(content="", ark=ark, msg_id=message_id)
-#     msg_api = qqbot.AsyncMessageAPI(t_token, False)
-#     await msg_api.post_message(channel_id, send)
-
-
-# async def send_weekly_announce_by_time(token):
-#     """
-#     任务描述：每周推送一次活动信息
-#     """
-#     if ((datetime.datetime.now().weekday() + 1) == 5) and ((datetime.datetime.now().hour == 7)): # 如果是周五早上七点
-#         # 获取活动数据
-#         response = requests.get("https://socialclub.rockstargames.com/events/eventlisting?pageId=1&gameId=GTAV")
-#         for each in response.json()['events']:
-#             if 'linkToUrl' in each.keys():
-#                 # print(each['linkToUrl'])
-#                 headers = {"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6"}
-#                 response = requests.get("https://socialclub.rockstargames.com/" + each['linkToUrl'], headers=headers)
-#                 event = etree.HTML(response.text)
-
-#                 for eachGuild in qqbot.UserAPI(token, False).me_guilds():
-#                     for eachChannel in qqbot.ChannelAPI(token, False).get_channels(eachGuild.id):
-#                         if eachChannel.name == '每周活动':
-#                             message = await qqbot.MessageAPI(token, False).post_message(eachChannel.id, {
-#                                 "content": event.xpath(r'string(//*[@id="bespoke-panel"]/div[1])').replace(" ", "").replace("GTA", "给他爱"),
-#                                 "msg_id": "0"
-#                             })
-#                             # announce = qqbot.AnnouncesAPI(token, False).create_announce(eachGuild.id, {
-#                             #     "channel_id": eachChannel.id,
-#                             #     "message_id": message.id
-#                             # })
-
-#                             break
-
-#                 break
-#     else:
-#         pass
-#     # 每小时执行一次
-#     print("\t" + datetime.datetime.now())
-#     t = threading.Timer(3600, await send_weekly_announce_by_time)
-#     t.start()
-
+    elif "/频道" in message.content:
+        await operate.guildInfo(t_token, message.content, message)
 
 # async的异步接口的使用示例
-if __name__ == "__main__":
+if __name__  ==  "__main__":
     t_token = qqbot.Token(test_config["token"]["appid"], test_config["token"]["token"])
-
-    # send_weekly_announce_by_time(t_token)
 
     # @机器人后推送被动消息
     qqbot_handler = qqbot.Handler(
