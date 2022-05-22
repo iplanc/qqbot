@@ -1,30 +1,30 @@
-from ast import keyword
+import aiohttp
 import asyncio
 import datetime
 import json
 import os
-import threading
-import time
+import qqbot
 import re
 import requests
+import sqlite3
 import sys
+import threading
+import time
 
+from ast import keyword
+from lxml import etree
 from typing import Dict, List
 
-import aiohttp
-import qqbot
-
-from lxml import etree
 from qqbot.core.util.yaml_util import YamlUtil
 from qqbot.model.message import (
-    MessageEmbed,
-    MessageEmbedField,
-    MessageEmbedThumbnail,
     CreateDirectMessageRequest,
     MessageArk,
     MessageArkKv,
     MessageArkObj,
     MessageArkObjKv,
+    MessageEmbed,
+    MessageEmbedField,
+    MessageEmbedThumbnail,
 )
 
 test_config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))

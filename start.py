@@ -1,30 +1,30 @@
-from ast import keyword
+import aiohttp
 import asyncio
 import datetime
 import json
 import os
-import threading
-import time
+import qqbot
 import re
 import requests
+import sqlite3
 import sys
+import threading
+import time
 
+from ast import keyword
+from lxml import etree
 from typing import Dict, List
 
-import aiohttp
-import qqbot
-
-from lxml import etree
 from qqbot.core.util.yaml_util import YamlUtil
 from qqbot.model.message import (
-    MessageEmbed,
-    MessageEmbedField,
-    MessageEmbedThumbnail,
     CreateDirectMessageRequest,
     MessageArk,
     MessageArkKv,
     MessageArkObj,
     MessageArkObjKv,
+    MessageEmbed,
+    MessageEmbedField,
+    MessageEmbedThumbnail,
 )
 
 test_config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))
@@ -44,16 +44,29 @@ def keywordsBlock(str):
 class GTAVBot:
     msgapi = None
     message_reference = None
+    member_api = None
 
 
     def __init__(self, t_token, message) -> None:
         self.msg_api = qqbot.AsyncMessageAPI(t_token, False)
+        self.member_api = qqbot.GuildMemberAPI(t_token, False)
         self.message_reference = qqbot.MessageReference()
         self.message_reference.message_id = message.id
     
+    async def getName(self, message):
+        message_to_send = qqbot.MessageSendRequest(
+            content = message.author.username, 
+            msg_id = message.id,
+            message_reference = self.message_reference
+        )
+        await self.msg_api.post_message(message.channel_id, message_to_send)
+        return message.author.username
 
     async def queryInfo(self, t_token, content, message):
-        username = content.split(" ")[2]
+        if content.split(" ")[2:] == []:
+            username = re.sub(r"id(:|：) ?", "", message.author.username.lower(), flags=re.M|re.I)
+        else:
+            username = content.split(" ")[2]
         self.message_reference = qqbot.MessageReference()
         self.message_reference.message_id = message.id
         response = requests.get(
@@ -61,21 +74,21 @@ class GTAVBot:
             params = {"nickname": username, "expire": 7200, "type": "text"},
         )
         qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-        if response.json()["code"]  ==  400:
+        if response.json()["code"] == 400:
             message_to_send = qqbot.MessageSendRequest(
                 content = response.json()["message"],
                 msg_id = message.id,
                 message_reference = self.message_reference
             )
             await self.msg_api.post_message(message.channel_id, message_to_send)
-        elif response.json()["code"]  ==  202:
+        elif response.json()["code"] == 202:
             message_to_send = qqbot.MessageSendRequest(
                 content = response.json()["message"], 
                 msg_id = message.id,
                 message_reference = self.message_reference
             )
             await self.msg_api.post_message(message.channel_id, message_to_send)
-        elif response.json()["code"]  ==  303:
+        elif response.json()["code"] == 303:
             response = requests.get(
                 "https://hqshi.cn/api/post", params = {"nickname": username}
             )
@@ -86,22 +99,33 @@ class GTAVBot:
                 message_reference = self.message_reference
             )
             await self.msg_api.post_message(message.channel_id, message_to_send)
+            times = 10
             while True:
                 time.sleep(1)
                 response1 = requests.get(
                     "https://hqshi.cn/api/recent",
                     params = {"nickname": username, "expire": 7200, "type": "text"},
                 )
-                if response1.json()["code"]  ==  200: break
-            message_to_send = qqbot.MessageSendRequest(
-                content = keywordsBlock(
-                    response1.json()["body"]
-                ),
-                msg_id = message.id,
-                message_reference = self.message_reference
-            )
-            qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-            await self.msg_api.post_message(message.channel_id, message_to_send)
+                if times == 0:
+                    message_to_send = qqbot.MessageSendRequest(
+                        content = "请求超时，请稍后再试。", 
+                        msg_id = message.id,
+                        message_reference = self.message_reference
+                    )
+                    await self.msg_api.post_message(message.channel_id, message_to_send)
+                    break
+                else:
+                    times = times - 1
+                if response1.json()["code"] == 200: 
+                    message_to_send = qqbot.MessageSendRequest(
+                        content = keywordsBlock(
+                            response1.json()["body"]
+                        ),
+                        msg_id = message.id,
+                        message_reference = self.message_reference
+                    )
+                    qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
+                    await self.msg_api.post_message(message.channel_id, message_to_send)
         else:
             message_to_send = qqbot.MessageSendRequest(
                 content = keywordsBlock(response.json()["body"]),
@@ -125,12 +149,15 @@ class GTAVBot:
     
 
     async def queryData(self, t_token, content, message):
-        username = content.split(" ")[2]
+        if content.split(" ")[2:] == []:
+            username = re.sub(r"id(:|：) ?", "", message.author.username.lower(), flags=re.M|re.I)
+        else:
+            username = content.split(" ")[2]
         response = requests.get(
             "https://hqshi.cn/api/status", params = {"nickname": username, "limit": 1}
         )
         qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
-        if response.json()["code"]  ==  400:
+        if response.json()["code"] == 400:
             message_to_send = qqbot.MessageSendRequest(
                 content = response.json()["message"],
                 msg_id = message.id,
@@ -169,7 +196,7 @@ class GTAVBot:
         def __init__(self, t_token, message) -> None:
             self.msg_api = qqbot.AsyncMessageAPI(t_token, False)
             self.mute_api = qqbot.MuteAPI(t_token, False)
-            self.guild_api = qqbot.GuildRoleAPI(t_token, False)
+            self.guild_api = qqbot.GuildAPI(t_token, False)
             self.message_reference = qqbot.MessageReference()
             self.user_api = qqbot.UserAPI(t_token, False)
             self.message_reference.message_id = message.id
@@ -178,28 +205,28 @@ class GTAVBot:
         async def muteUser(self, t_token, content, message):
             userid = content.split(" ")[2][3:-1]
             mutetime = content.split(" ")[3]
-            setrole = ("博林布鲁克监狱服役人员" if content.split(" ")[4:]  ==  [] else content.split(" ")[4])
-            self.mute_api.mute_member(
-                guild_id = message.guild_id,
-                user_id = userid,
-                options = {"mute_seconds": mutetime}
-            )
-            message_to_send = qqbot.MessageSendRequest(
-                content = "已禁言" + userid,
-                msg_id = message.id,
-                message_reference = self.message_reference
-            )
-            await self.msg_api.post_message(message.channel_id, message_to_send)
+            setrole = ("博林布鲁克监狱服役人员" if content.split(" ")[4:] == [] else content.split(" ")[4])
+            # self.mute_api.mute_member(
+            #     guild_id = message.guild_id,
+            #     user_id = userid,
+            #     options = {"mute_seconds": mutetime}
+            # )
+            # message_to_send = qqbot.MessageSendRequest(
+            #     content = "已禁言" + userid,
+            #     msg_id = message.id,
+            #     message_reference = self.message_reference
+            # )
+            # await self.msg_api.post_message(message.channel_id, message_to_send)
 
-            for eachRole in (self.guild_api.get_guild_roles(message.guild_id).roles):
-                if eachRole.name ==  setrole:
-                    self.guild_api.create_guild_role_member(message.guild_id, eachRole.id, userid)
-            message_to_send = qqbot.MessageSendRequest(
-                content = "已添加身份组" + userid,
-                msg_id = message.id,
-                message_reference = self.message_reference
-            )
-            await self.msg_api.post_message(message.channel_id, message_to_send)
+            # for eachRole in (self.guild_api.get_guild_roles(message.guild_id).roles):
+            #     if eachRole.name ==  setrole:
+            #         self.guild_api.create_guild_role_member(message.guild_id, eachRole.id, userid)
+            # message_to_send = qqbot.MessageSendRequest(
+            #     content = "已添加身份组" + userid,
+            #     msg_id = message.id,
+            #     message_reference = self.message_reference
+            # )
+            # await self.msg_api.post_message(message.channel_id, message_to_send)
         
 
         async def serverStatus(self, t_token, content, message):
@@ -255,9 +282,12 @@ async def _message_handler(event, message: qqbot.Message):
     
     elif "/频道" in message.content:
         await operate.guildInfo(t_token, message.content, message)
+    
+    elif "/测试" in message.content:
+        await gtavbot.getName(message)
 
 # async的异步接口的使用示例
-if __name__  ==  "__main__":
+if __name__ == "__main__":
     t_token = qqbot.Token(test_config["token"]["appid"], test_config["token"]["token"])
 
     # @机器人后推送被动消息

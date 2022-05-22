@@ -143,6 +143,36 @@ async def _message_handler(event, message: qqbot.Message):
 
     elif "/禁言" in content:
         ...
+    ...
+```
+
+### 警告禁言数据库交互
+数据库采用MySQL
+``` mermaid
+sequenceDiagram
+    participant qq频道
+    participant 机器人
+    participant 数据库
+
+    qq频道 ->> 机器人 : "禁言用户id"
+    机器人 ->> 数据库 : "查询是否存在数据，否则新建"
+    数据库 -->> 机器人 : "存在"
+    机器人 ->> 数据库 : "sql语句"
+    数据库 -->> 机器人 : "返回被警告次数"
+    机器人 -->> qq频道 : "禁言用户id"
+```
+```sql
+update data_tbl set age=age+1 where id=2;
+
+select
+    if(age%3=0,
+        (select -1),
+        (
+            select age%3
+                from data_tbl where guild_id={guildid}, id={userid}
+        )
+    )
+    from data_tbl where guild_id={guildid}, id={userid};
 ```
 # 三分半掌握基础qq机器人开发
 [视频链接](http://119.29.96.141:81/rickroll.mp4)
