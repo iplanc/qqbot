@@ -99,14 +99,13 @@ class GTAVBot:
                 message_reference = self.message_reference
             )
             await self.msg_api.post_message(message.channel_id, message_to_send)
-            times = 10
-            while True:
+            for times in range(10, 0, -1):
                 time.sleep(1)
                 response1 = requests.get(
                     "https://hqshi.cn/api/recent",
                     params = {"nickname": username, "expire": 7200, "type": "text"},
                 )
-                if times == 0:
+                if times == 1:
                     message_to_send = qqbot.MessageSendRequest(
                         content = "请求超时，请稍后再试。", 
                         msg_id = message.id,
@@ -114,8 +113,6 @@ class GTAVBot:
                     )
                     await self.msg_api.post_message(message.channel_id, message_to_send)
                     break
-                else:
-                    times = times - 1
                 if response1.json()["code"] == 200: 
                     message_to_send = qqbot.MessageSendRequest(
                         content = keywordsBlock(
@@ -126,6 +123,7 @@ class GTAVBot:
                     )
                     qqbot.logger.info(response.url + " status:" + str(response.json()["code"]))
                     await self.msg_api.post_message(message.channel_id, message_to_send)
+                    break
         else:
             message_to_send = qqbot.MessageSendRequest(
                 content = keywordsBlock(response.json()["body"]),
