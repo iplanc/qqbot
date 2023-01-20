@@ -175,4 +175,4 @@ select
     from data_tbl where guild_id={guildid}, id={userid};
 ```
 # 三分半掌握基础qq机器人开发
-[视频链接](http://119.29.96.141:81/rickroll.mp4)
+[视频链接](http://119.29.96.141:81/2k3jh8zx7f.mp4)

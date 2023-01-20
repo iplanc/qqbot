@@ -1,12 +1,14 @@
+#coding:utf-8
+
 import aiohttp
 import asyncio
 import datetime
 import json
+import MySQLdb
 import os
 import qqbot
 import re
 import requests
-import sqlite3
 import sys
 import threading
 import time
@@ -56,26 +58,31 @@ for each in response.json()["events"]:
             "https://socialclub.rockstargames.com/" + each["linkToUrl"], headers=headers
         )
         event = etree.HTML(response.text)
+        print(each)
+        print(response.url)
 
         for eachGuild in qqbot.UserAPI(token, False).me_guilds():
-            for eachChannel in qqbot.ChannelAPI(token, False).get_channels(
-                eachGuild.id
-            ):
-                if "每周活动" in eachChannel.name:
-                    message = qqbot.MessageAPI(token, False).post_message(
-                        eachChannel.id,
-                        {
-                            "content": keywordsBlock(
-                                event.xpath(r'string(//*[@id="bespoke-panel"]/div[1])')
-                            ),
-                            "msg_id": "0",
-                        },
-                    )
-                    # announce = qqbot.AnnouncesAPI(token, False).create_announce(eachGuild.id, {
-                    #     "channel_id": eachChannel.id,
-                    #     "message_id": message.id
-                    # })
-
-                    break
-
+            print(eachGuild.name)
+            permissions = qqbot.APIPermissionAPI(token, False).get_permissions(eachGuild.id)
+            for eachPermission in permissions:
+                if eachPermission.path == "/guilds/{guild_id}/channels":
+                    if eachPermission.auth_status == 1:
+                        for eachChannel in qqbot.ChannelAPI(token, False).get_channels(eachGuild.id):
+                            if "每周活动" in eachChannel.name:
+                                print("    " + eachChannel.name)
+                                try:
+                                    message = qqbot.MessageAPI(token, False).post_message(
+                                        eachChannel.id,
+                                        {
+                                            "content": keywordsBlock(
+                                                event.xpath(r'string(//*[@id="bespoke-panel"]/div[1])')
+                                            ),
+                                            "msg_id": "0",
+                                        },
+                                    )
+                                except:
+                                    print("出错")
+                                break
+                    else:
+                        break
         break

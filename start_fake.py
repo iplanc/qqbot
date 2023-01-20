@@ -27,7 +27,7 @@ from qqbot.model.message import (
     MessageEmbedThumbnail,
 )
 
-test_config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config_fake.yaml"))
+test_config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))
 
 async def _message_handler(event, message: qqbot.Message):
     """
@@ -67,6 +67,9 @@ async def _message_handler(event, message: qqbot.Message):
         print("\tisbot:", qqbot.GuildMemberAPI(t_token, False).get_guild_member(message.guild_id, userid).user.bot)
         message_to_send = qqbot.MessageSendRequest(content="已禁言" + userid + " " + mutetime + "秒", msg_id=message.id)
         await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/帮助" in content:
+        message_to_send = qqbot.MessageSendRequest(content="/查询 /信息 /活动 /禁言 /帮助", msg_id=message.id)
+        await msg_api.post_message(message.channel_id, message_to_send)
 
 def channel_info():
     api = qqbot.UserAPI(t_token, False)
@@ -74,9 +77,12 @@ def channel_info():
     api = qqbot.ChannelAPI(t_token, False)
     for eachGuild in guilds:
         print(eachGuild.id, eachGuild.name)
-        channels = api.get_channels(eachGuild.id)
-        for eachChannel in channels:
-            print("\t", eachChannel.id, eachChannel.name, eachChannel.type)
+        try:
+            channels = api.get_channels(eachGuild.id)
+            for eachChannel in channels:
+                print("\t", eachChannel.id, eachChannel.name, eachChannel.type)
+        except:
+            pass
 
 # async的异步接口的使用示例
 if __name__ == "__main__":
