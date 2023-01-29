@@ -47,40 +47,37 @@ async def _message_handler(event, message: qqbot.Message):
         message_to_send = qqbot.MessageSendRequest(content="性别：男", msg_id=message.id)
         await msg_api.post_message(message.channel_id, message_to_send)
     elif "/活动" in content:
-        # 获取已加入的频道信息
-        channelList = qqbot.UserAPI(t_token, False).me_guilds()
-        # print(message.guild_id, message.channel_id)
-        subChannelList = qqbot.ChannelAPI(t_token, False).get_channels(message.guild_id)
-        for eachSubChannel in subChannelList:
-            # print("\t", eachSubChannel.id, eachSubChannel.name, eachSubChannel.type)
-            if eachSubChannel.type == 10007:
-                message_to_send = qqbot.MessageSendRequest(content="<#"+ eachSubChannel.id + ">", msg_id=message.id)
-                await msg_api.post_message(message.channel_id, message_to_send)
-                break
+        message_to_send = qqbot.MessageSendRequest(content="暂无活动", msg_id=message.id)
+        await msg_api.post_message(message.channel_id, message_to_send)
     elif "/禁言" in content:
-        userid = content.split(" ")[2][3:-1]
-        mutetime = content.split(" ")[3]
-        print("\ttime:", datetime.datetime.now())
-        print("\tid:", qqbot.GuildMemberAPI(t_token, False).get_guild_member(message.guild_id, userid).user.id)
-        print("\tusername:", qqbot.GuildMemberAPI(t_token, False).get_guild_member(message.guild_id, userid).user.username)
-        print("\tavatar:", qqbot.GuildMemberAPI(t_token, False).get_guild_member(message.guild_id, userid).user.avatar)
-        print("\tisbot:", qqbot.GuildMemberAPI(t_token, False).get_guild_member(message.guild_id, userid).user.bot)
-        message_to_send = qqbot.MessageSendRequest(content="已禁言" + userid + " " + mutetime + "秒", msg_id=message.id)
+        message_to_send = qqbot.MessageSendRequest(content="权限不足", msg_id=message.id)
         await msg_api.post_message(message.channel_id, message_to_send)
     elif "/帮助" in content:
         message_to_send = qqbot.MessageSendRequest(content="/查询 /信息 /活动 /禁言 /帮助", msg_id=message.id)
         await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/上岛" in content:
+        message_to_send = qqbot.MessageSendRequest(content="预测值为：1200000", msg_id=message.id)
+        await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/重启" in content:
+        message_to_send = qqbot.MessageSendRequest(content="五秒后重启", msg_id=message.id)
+        await msg_api.post_message(message.channel_id, message_to_send)
+    elif "/状态" in content:
+        message_to_send = qqbot.MessageSendRequest(content="状态良好", msg_id=message.id)
+        await msg_api.post_message(message.channel_id, message_to_send)
 
-def channel_info():
+async def channel_announce(t_token):
     api = qqbot.UserAPI(t_token, False)
     guilds = api.me_guilds()
     api = qqbot.ChannelAPI(t_token, False)
+    msg_api = qqbot.AsyncMessageAPI(t_token, False)
     for eachGuild in guilds:
         print(eachGuild.id, eachGuild.name)
         try:
             channels = api.get_channels(eachGuild.id)
             for eachChannel in channels:
-                print("\t", eachChannel.id, eachChannel.name, eachChannel.type)
+                if (qqbot.ChannelAPI.get_channel(eachChannel).type == 0):
+                    message_to_send = qqbot.MessageSendRequest(content="维护中，请等待")
+                    await msg_api.post_message(eachGuild, message_to_send)
         except:
             pass
 
@@ -88,9 +85,8 @@ def channel_info():
 if __name__ == "__main__":
     t_token = qqbot.Token(test_config["token"]["appid"], test_config["token"]["token"])
 
-    channel_info()
-    
+    # channel_announce(t_token)
+
     # @机器人后推送被动消息
     qqbot_handler = qqbot.Handler(qqbot.HandlerType.AT_MESSAGE_EVENT_HANDLER, _message_handler)
     qqbot.async_listen_events(t_token, False, qqbot_handler)
-    

@@ -309,6 +309,18 @@ class GTAVBot:
                 finally:
                     await self.msg_api.post_message(message.channel_id, message_to_send)
 
+        async def reboot(self, t_token, content, message):
+            message_to_send = qqbot.MessageSendRequest(
+                content = "五秒后重启",
+                msg_id = message.id,
+                message_reference = self.message_reference
+            )
+            await self.msg_api.post_message(message.channel_id, message_to_send)
+            print("manual reboot")
+            os.system("python3 watchdog.py > watchdog.log")
+            exit(1)
+
+
 async def _message_handler(event, message: qqbot.Message):
     """
     定义事件回调的处理
@@ -348,6 +360,9 @@ async def _message_handler(event, message: qqbot.Message):
 
     elif "/测试" in message.content:
         await gtavbot.getName(message)
+
+    elif "/重启" in message.content:
+        await operate.reboot(t_token, message.content, message)
 
 # async的异步接口的使用示例
 if __name__ == "__main__":
