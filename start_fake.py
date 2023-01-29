@@ -37,7 +37,7 @@ async def _message_handler(event, message: qqbot.Message):
     """
     msg_api = qqbot.AsyncMessageAPI(t_token, False)
     # 打印返回信息
-    qqbot.logger.info("event %s" % event + ",receive message %s" % message.content)
+    qqbot.logger.info("event %s" % event + ", from %s" % qqbot.GuildAPI(t_token, False).get_guild(message.guild_id).name + ", receive message %s" % message.content)
     # 运行命令
     content = message.content
     if "/查询" in content:
