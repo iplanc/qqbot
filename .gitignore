@@ -1,3 +1,5 @@
 config.yaml
 test.py
 *.log*
+
+*.pyc

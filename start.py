@@ -1,5 +1,6 @@
 import aiohttp
 import asyncio
+import botpy
 import datetime
 import json
 import MySQLdb
@@ -27,6 +28,8 @@ from qqbot.model.message import (
     MessageEmbedField,
     MessageEmbedThumbnail,
 )
+
+import utils.help
 
 config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))
 
@@ -168,7 +171,7 @@ class GTAVBot:
             message_reference = self.message_reference
         )
         await self.msg_api.post_message(message.channel_id, message_to_send)
-        for times in range(10, 0, -1):
+        for times in range(15, 0, -1):
             time.sleep(1)
             response1 = requests.get(
                 "https://hqshi.cn/api/recent",
@@ -237,7 +240,7 @@ class GTAVBot:
             total_value = int(round(total_value * 1.1, -1))
 
         message_to_send = qqbot.MessageSendRequest(
-            content = keywordsBlock("预计收入: " + str(total_value) + " " + str(round(total_value / 10000, 2)) + "w"),
+            content = keywordsBlock("预计收入: " + "${:,}".format(total_value) + " = " + str(round(total_value / 10000, 2)) + "w"),
             msg_id = message.id,
             message_reference = self.message_reference
         )
@@ -363,6 +366,10 @@ async def _message_handler(event, message: qqbot.Message):
 
     elif "/重启" in message.content:
         await operate.reboot(t_token, message.content, message)
+
+    elif "/帮助" in message.content:
+        help = utils.help.HelpInfo()
+        await help.print(t_token, message.content, message)
 
 # async的异步接口的使用示例
 if __name__ == "__main__":
