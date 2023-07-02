@@ -1,51 +1,16 @@
 #coding:utf-8
-
-import aiohttp
-import asyncio
-import datetime
 import json
-import MySQLdb
 import os
 import qqbot
-import re
 import requests
-import sys
-import threading
-import time
 
-from ast import keyword
 from lxml import etree
-from typing import Dict, List
 
-from qqbot.core.util.yaml_util import YamlUtil
-from qqbot.model.message import (
-    CreateDirectMessageRequest,
-    MessageArk,
-    MessageArkKv,
-    MessageArkObj,
-    MessageArkObjKv,
-    MessageEmbed,
-    MessageEmbedField,
-    MessageEmbedThumbnail,
-)
+import Keywords
 
-test_config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))
+config = json.loads(open("./config.json", "r").read())
 
-token = qqbot.Token(test_config["token"]["appid"], test_config["token"]["token"])
-
-
-def keywordsBlock(str):
-    keywords = {
-        "下注": "虾煮",
-        "GTA": "给她爱",
-        "赌场": "DC",
-        "提示: 更多数据请使用小程序 “洛圣都 Express”查看": "",
-        " ": "",
-    }
-    for eachWord in keywords.keys():
-        str = str.replace(eachWord, keywords.get(eachWord))
-    return str.strip("\n")
-
+token = qqbot.Token(config["appid"], config["token"])
 
 response = requests.get(
     "https://socialclub.rockstargames.com/events/eventlisting?pageId=1&gameId=GTAV"
@@ -74,7 +39,7 @@ for each in response.json()["events"]:
                                     message = qqbot.MessageAPI(token, False).post_message(
                                         eachChannel.id,
                                         {
-                                            "content": keywordsBlock(
+                                            "content": Keywords.Keywords.block(
                                                 event.xpath(r'string(//*[@id="bespoke-panel"]/div[1])')
                                             ),
                                             "msg_id": "0",

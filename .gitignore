@@ -1,4 +1,5 @@
 config.yaml
+config.json
 test.py
 *.log*
 

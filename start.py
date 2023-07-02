@@ -1,7 +1,3 @@
-import aiohttp
-import asyncio
-import botpy
-import datetime
 import json
 import MySQLdb
 import os
@@ -9,15 +5,10 @@ import qqbot
 import random
 import re
 import requests
-import sys
-import threading
 import time
 
-from ast import keyword
-from lxml import etree
 from typing import Dict, List
 
-from qqbot.core.util.yaml_util import YamlUtil
 from qqbot.model.message import (
     CreateDirectMessageRequest,
     MessageArk,
@@ -29,21 +20,10 @@ from qqbot.model.message import (
     MessageEmbedThumbnail,
 )
 
+import Keywords
 import utils.help
 
-config = YamlUtil.read(os.path.join(os.path.dirname(__file__), "config.yaml"))
-
-
-def keywordsBlock(str):
-    keywords = {
-        "下注": "虾煮",
-        "GTA": "给她爱",
-        "赌场": "DC",
-        "提示: 更多数据请使用小程序 “洛圣都 Express”查看": "",
-    }
-    for eachWord in keywords.keys():
-        str = re.sub(eachWord, keywords.get(eachWord), str)
-    return str.strip("\n")
+config = json.loads(open("./config.json", "r").read())
 
 class GTAVBot:
     msgapi = None
@@ -101,7 +81,7 @@ class GTAVBot:
             await self.msg_api.post_message(message.channel_id, message_to_send)
         else:
             message_to_send = qqbot.MessageSendRequest(
-                content = keywordsBlock(response.json()["body"]),
+                content = Keywords.Keywords.block(response.json()["body"]),
                 msg_id = message.id,
                 message_reference = self.message_reference
             )
@@ -140,7 +120,7 @@ class GTAVBot:
         else:
             if response.json().__contains__("body"):
                 message_to_send = qqbot.MessageSendRequest(
-                    content = keywordsBlock(
+                    content = Keywords.Keywords.block(
                         json.dumps(
                             response.json()["body"],
                             ensure_ascii = False,
@@ -178,7 +158,7 @@ class GTAVBot:
                 params = {"nickname": username, "expire": 7200, "type": "text"},
             )
             if response1.json()["code"] == 200:
-                return keywordsBlock(response1.json()["body"])
+                return Keywords.Keywords.block(response1.json()["body"])
         return "请求超时，请稍后重试。"
 
     async def perico(self, t_token, content, message):
@@ -240,7 +220,7 @@ class GTAVBot:
             total_value = int(round(total_value * 1.1, -1))
 
         message_to_send = qqbot.MessageSendRequest(
-            content = keywordsBlock("预计收入: " + "${:,}".format(total_value) + " = " + str(round(total_value / 10000, 2)) + "w"),
+            content = Keywords.Keywords.block("预计收入: " + "${:,}".format(total_value) + " = " + str(round(total_value / 10000, 2)) + "w"),
             msg_id = message.id,
             message_reference = self.message_reference
         )
@@ -322,6 +302,9 @@ class GTAVBot:
             print("manual reboot")
             os.system("python3 watchdog.py > watchdog.log")
             exit(1)
+        async def addBlock(self, t_token, content, message):
+            keywords = Keywords.Keywords
+            keywords.add(message.content.split(" ")[2], message.content.split(" ")[3])
 
 
 async def _message_handler(event, message: qqbot.Message):
@@ -367,13 +350,16 @@ async def _message_handler(event, message: qqbot.Message):
     elif "/重启" in message.content:
         await operate.reboot(t_token, message.content, message)
 
+    elif "/屏蔽" in message.content:
+        await operate.addBlock(t_token, message.content, message)
+
     elif "/帮助" in message.content:
         help = utils.help.HelpInfo()
         await help.print(t_token, message.content, message)
 
 # async的异步接口的使用示例
 if __name__ == "__main__":
-    t_token = qqbot.Token(config["token"]["appid"], config["token"]["token"])
+    t_token = qqbot.Token(config["appid"], config["token"])
 
     # @机器人后推送被动消息
     qqbot_handler = qqbot.Handler(
